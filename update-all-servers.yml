@@ -1,0 +1,31 @@
+---
+- name: Update and Upgrade Ubuntu Servers
+  hosts: ubuntu_servers
+  gather_facts: yes
+  become: yes  # This allows the playbook to run tasks with sudo privileges
+
+  tasks:
+    - name: Perform a dist-upgrade (update cache and upgrade all packages)
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: yes
+      register: apt_status
+      # This task updates the package cache (apt update) and upgrades all packages (apt dist-upgrade).
+
+    - name: Check if a reboot is required by checking for the /var/run/reboot-required file
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+        get_checksum: no
+      register: reboot_required_file
+      # The presence of this file indicates a reboot is needed.
+
+    - name: Reboot the server if required
+      ansible.builtin.reboot:
+        reboot_timeout: 600 # Wait up to 10 minutes for the server to come back
+      when: reboot_required_file.stat.exists == true
+      # This task runs conditionally.
+
+    - name: Remove dependencies that are no longer required (autoremove)
+      ansible.builtin.apt:
+        autoremove: yes
+      # Cleans up unused packages after the update.
